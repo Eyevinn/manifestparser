@@ -20,9 +20,10 @@ public class ParserTests {
 
     @Test
     public void parseHLSFile() {
+        System.out.println("Testing to parse HLS files");
         for(String hlsTestFile : hlsTestFiles) {
             StreamingManifest manifest = StreamingManifestFactory.createInstance(hlsTestFile);
-            assertEquals(manifest.getManifestType(), StreamingManifestType.HLS);
+            Assert.assertEquals(manifest.getManifestType(), StreamingManifestType.HLS);
         }
     }
 }
