@@ -1,4 +1,6 @@
-appengine-skeleton
-=============================
+Manifest Parser
+===============
 
-This is a generated application from the appengine-skeleton archetype.
+An Eyevinn Labs service to parse streaming manifest files and output some
+detailed information about the streams
+
