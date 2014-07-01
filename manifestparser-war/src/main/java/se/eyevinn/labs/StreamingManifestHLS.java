@@ -31,10 +31,14 @@ public class StreamingManifestHLS implements StreamingManifest {
         try {
             BufferedReader reader = new BufferedReader(new FileReader(manifestFile));
             String line = null;
+            int linenumber = 0;
             while ((line = reader.readLine()) != null) {
                 if (line.contains("#EXTM3U")) {
-                    foundTag = true;
+                    if (linenumber < 1) {
+                        foundTag = true;
+                    }
                 }
+                linenumber++;
             }
             if (!foundTag) {
                 throw new StreamingManifestException("Not a valid HLS manifest. No #EXTM3U tag found");
