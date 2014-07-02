@@ -16,6 +16,7 @@ public class ParserTests {
 
     public ParserTests() {
         hlsTestFiles.add("src/test/resources/bipbop_4x3_variant.m3u8");
+        hlsTestFiles.add("src/test/resources/simple.m3u8");
     }
 
     @Test
@@ -30,5 +31,6 @@ public class ParserTests {
                 fail("Failed parsing test file: " + hlsTestFile + ": " + e.getMessage());
             }
         }
+        System.out.println("Managed to parse all HLS files");
     }
 }
