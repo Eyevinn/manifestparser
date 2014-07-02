@@ -22,13 +22,43 @@ package se.eyevinn.labs;
 public class ManifestMediaSegment {
     private String mediaURI;
     private float mediaDuration;
+    private class ByteRange {
+        private int offset;
+        private int length;
+        public ByteRange(int offset, int length) { this.offset = offset; this.length = length; }
+        public int getOffset() { return this.offset; }
+        public int getLength() { return this.length; }
+        public String toString() { return "["+offset+":"+(offset+length)+"]"; }
+    }
+    private ByteRange range;
+
+    public ManifestMediaSegment(String mediaURI) {
+        this.mediaURI = mediaURI;
+    }
 
     public ManifestMediaSegment(String mediaURI, float mediaDuration) {
         this.mediaURI = mediaURI;
         this.mediaDuration = mediaDuration;
     }
 
+    public void setDuration(float mediaDuration) { this.mediaDuration = mediaDuration; }
+    public float getDuration() { return this.mediaDuration; }
+
+    public void setByteRange(int offset, int length) { this.range = new ByteRange(offset, length); }
+    public boolean hasByteRange() {
+        if (this.range != null) {
+            return true;
+        }
+        return false;
+    }
+    public int getMediaSegmentStart() { return range.getOffset(); }
+    public int getMediaSegmentEnd() { return range.getOffset() + range.getLength(); }
+
     public String toString() {
-        return mediaURI + " (" + mediaDuration + ")";
+        String sRange = "";
+        if (range != null) {
+            sRange = range.toString();
+        }
+        return mediaURI + " (" + mediaDuration + ") " + sRange;
     }
 }

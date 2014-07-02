@@ -25,4 +25,5 @@ public interface StreamingManifest {
     public void parse() throws StreamingManifestException;
     public List<ManifestMediaSegment> getMediaSegments() throws StreamingManifestException;
     public String getManifestType();
+    public int getManifestDuration();
 }

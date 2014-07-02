@@ -34,6 +34,9 @@ public class ParserTests {
         hlsTestFiles.add("src/test/resources/bipbop_4x3_variant.m3u8");
         hlsTestFiles.add("src/test/resources/simple.m3u8");
         hlsTestFiles.add("src/test/resources/wowza.m3u8");
+        hlsTestFiles.add("src/test/resources/encrypted.m3u8");
+        hlsTestFiles.add("src/test/resources/master.m3u8");
+        hlsTestFiles.add("src/test/resources/byterange.m3u8");
     }
 
     @Test
@@ -46,6 +49,9 @@ public class ParserTests {
                 manifest.parse();
                 int i = 1;
                 System.out.println(" * " + hlsTestFile + ":");
+                if (manifest.getManifestDuration() > 0) {
+                    System.out.println("   Duration: " + manifest.getManifestDuration() + "s");
+                }
                 for(ManifestMediaSegment seg : manifest.getMediaSegments()) {
                     System.out.println("   - " + i + ": " + seg);
                     i++;

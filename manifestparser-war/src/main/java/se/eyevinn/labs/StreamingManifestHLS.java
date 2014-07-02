@@ -30,18 +30,21 @@ import java.util.regex.Pattern;
 public class StreamingManifestHLS implements StreamingManifest {
     private InputStream inputStream = null;
     private boolean validFile = false;
-    private Map<String, String> validTags = new HashMap<>();
     private class HLSMediaSegment {
         public Float duration;
         public String title;
         public String mediauri;
+        public int byteRangeLength = 0;
+        public int byteRangeOffset = 0;
     }
     private List<HLSMediaSegment> playlistHLS = new ArrayList<>();
+    private String manifestVersion;
+    private int targetDuration = 0;
+    private boolean isMasterPlaylist = true;
 
     public StreamingManifestHLS(String manifestFileName) throws StreamingManifestException {
         try {
             inputStream = new FileInputStream(manifestFileName);
-            initiateTags();
         } catch (FileNotFoundException e) {
             throw new StreamingManifestException("HLS file " + manifestFileName + " not found: " + e.getMessage());
         }
@@ -63,78 +66,155 @@ public class StreamingManifestHLS implements StreamingManifest {
         return StreamingManifestType.HLS;
     }
 
+    public int getManifestDuration() {
+        return targetDuration;
+    }
+
     public List<ManifestMediaSegment> getMediaSegments() throws StreamingManifestException {
         List<ManifestMediaSegment> segments = new ArrayList<>();
         for (HLSMediaSegment hlsMediaSegment : playlistHLS) {
-            ManifestMediaSegment segment = new ManifestMediaSegment(hlsMediaSegment.mediauri, hlsMediaSegment.duration);
+            ManifestMediaSegment segment = new ManifestMediaSegment(hlsMediaSegment.mediauri);
+            if (hlsMediaSegment.duration != null) {
+                segment.setDuration(hlsMediaSegment.duration);
+            }
+            if (hlsMediaSegment.byteRangeLength != 0) {
+                segment.setByteRange(hlsMediaSegment.byteRangeOffset, hlsMediaSegment.byteRangeLength);
+            }
+
             segments.add(segment);
         }
         return segments;
     }
 
-    private void initiateTags() {
-        validTags.put("#EXTM3U", "EXTM3U");
-        validTags.put("#EXTINF", "EXTINF");
-    }
-
     private String tagFromLine(String line) {
         if (line.equals("#EXTM3U")) {
-            return validTags.get(line);
+            return "EXTM3U";
         }
-        Pattern p = Pattern.compile("^(#\\w+):(.*)");
+        Pattern p = Pattern.compile("^(#.*?):(.*)");
         Matcher m = p.matcher(line);
         if (m.matches()) {
-            String tag = m.group(1);
-            return validTags.get(tag);
+            return m.group(1).substring(1);
         }
         return null;
     }
 
-    private HLSMediaSegment parseEXTINF(String line) {
-        HLSMediaSegment segment = new HLSMediaSegment();
+    private void parseEXTINF(HLSMediaSegment segment, String line) {
         Pattern p = Pattern.compile("#EXTINF:(.*),(.*)");
         Matcher m = p.matcher(line);
         if (m.matches()) {
             segment.duration = new Float(m.group(1));
             segment.title = m.group(2);
-            return segment;
         }
-        return null;
+    }
+
+    private void parseEXTByteRange(HLSMediaSegment segment, String line) {
+        Pattern p = Pattern.compile("#EXT-X-BYTERANGE:(\\d+)(@\\d+)?");
+        Matcher m = p.matcher(line);
+        if (m.matches()) {
+            segment.byteRangeLength = new Integer(m.group(1));
+            if (m.group(2) != null) {
+                segment.byteRangeOffset = new Integer(m.group(2).substring(1));
+            }
+        }
+
+    }
+
+    private void parseTargetDuration(String line) {
+        Pattern p = Pattern.compile("#EXT-X-TARGETDURATION:(\\d+)");
+        Matcher m = p.matcher(line);
+        if (m.matches()) {
+            targetDuration = new Integer(m.group(1));
+        }
+    }
+
+    private void parseVersion(String line) {
+        Pattern p = Pattern.compile("#EXT-X-VERSION:(\\d+)");
+        Matcher m = p.matcher(line);
+        if (m.matches()) {
+            manifestVersion = m.group(1);
+        }
     }
 
     private void parseUTF8(BufferedReader reader) throws StreamingManifestException {
         try {
             String line = null;
-            boolean expectMediaSegment = false;
             int linenumber = 0;
-            HLSMediaSegment segment = null;
+            HLSMediaSegment segment = new HLSMediaSegment();
             while ((line = reader.readLine()) != null) {
-                if (!expectMediaSegment) {
-                    String tag = tagFromLine(line);
-                    if (tag != null) {
-                        switch (tag) {
-                            case "EXTM3U":
-                                if (linenumber < 1) {
-                                    validFile = true;
-                                }
-                                break;
-                            case "EXTINF":
-                                expectMediaSegment = true;
-                                segment = parseEXTINF(line);
-                                break;
-                        }
+                String tag = tagFromLine(line);
+                if (tag != null) {
+                    switch (tag) {
+                        case "EXTM3U":
+                            if (linenumber < 1) {
+                                validFile = true;
+                            }
+                            break;
+                        case "EXTINF":
+                            parseEXTINF(segment, line);
+                            break;
+                        case "EXT-X-BYTERANGE":
+                            manifestVersion = "4";
+                            isMasterPlaylist = false;
+                            parseEXTByteRange(segment, line);
+                            break;
+                        case "EXT-X-TARGETDURATION":
+                            parseTargetDuration(line);
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-MEDIA-SEQUENCE":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-PROGRAM-DATE-TIME":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-PLAYLIST-TYPE":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-ENDLIST":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-MEDIA":
+                            break;
+                        case "EXT-X-STREAM-INF":
+                            break;
+                        case "EXT-X-DISCONTINUITY":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-DISCONTINUITY-SEQUENCE":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-I-FRAMES-ONLY":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-MAP":
+                            isMasterPlaylist = false;
+                            break;
+                        case "EXT-X-I-FRAME-STREAM-INF":
+                            break;
+                        case "EXT-X-INDEPENDENT-SEGMENTS":
+                            break;
+                        case "EXT-X-START":
+                            break;
+                        case "EXT-X-KEY":
+                            break;
+                        case "EXT-X-VERSION":
+                            parseVersion(line);
+                            break;
+                        default:
+                            throw new StreamingManifestException("Unknown tag found in HLS manifest: " + tag);
                     }
-                } else {
+                } else if (!line.isEmpty() && !line.startsWith("#")) {
                     segment.mediauri = line;
                     playlistHLS.add(segment);
-                    expectMediaSegment = false;
-                    segment = null;
+                    segment = new HLSMediaSegment();
                 }
                 linenumber++;
-
             }
             if (!validFile) {
-                throw new StreamingManifestException("Not a valid HLS manifest. No #EXTM3U tag found");
+                throw new StreamingManifestException("No #EXTM3U tag found");
+            }
+            if (!isMasterPlaylist && targetDuration == 0) {
+                throw new StreamingManifestException("No #EXT-X-TARGETDURATION and not a master playlist");
             }
         } catch (IOException e) {
             throw new StreamingManifestException("Error reading HLS manifest: " + e.getMessage());
