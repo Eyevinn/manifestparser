@@ -33,16 +33,23 @@ public class ParserTests {
     public ParserTests() {
         hlsTestFiles.add("src/test/resources/bipbop_4x3_variant.m3u8");
         hlsTestFiles.add("src/test/resources/simple.m3u8");
+        hlsTestFiles.add("src/test/resources/wowza.m3u8");
     }
 
     @Test
     public void parseHLSFile() {
-        System.out.println("Testing to parse HLS files");
+        System.out.println("Testing to parse HLS files: ");
         for(String hlsTestFile : hlsTestFiles) {
             try {
                 StreamingManifest manifest = StreamingManifestFactory.createInstance(hlsTestFile);
                 Assert.assertEquals(manifest.getManifestType(), StreamingManifestType.HLS);
                 manifest.parse();
+                int i = 1;
+                System.out.println(" * " + hlsTestFile + ":");
+                for(ManifestMediaSegment seg : manifest.getMediaSegments()) {
+                    System.out.println("   - " + i + ": " + seg);
+                    i++;
+                }
             } catch (StreamingManifestException e) {
                 fail("Failed parsing test file: " + hlsTestFile + ": " + e.getMessage());
             }

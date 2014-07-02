@@ -31,12 +31,12 @@ public class StreamingManifestHLS implements StreamingManifest {
     private InputStream inputStream = null;
     private boolean validFile = false;
     private Map<String, String> validTags = new HashMap<>();
-    private class MediaSegment {
+    private class HLSMediaSegment {
         public Float duration;
         public String title;
-        public String medialink;
+        public String mediauri;
     }
-    private List<MediaSegment> playlist = new ArrayList<>();
+    private List<HLSMediaSegment> playlistHLS = new ArrayList<>();
 
     public StreamingManifestHLS(String manifestFileName) throws StreamingManifestException {
         try {
@@ -63,8 +63,18 @@ public class StreamingManifestHLS implements StreamingManifest {
         return StreamingManifestType.HLS;
     }
 
+    public List<ManifestMediaSegment> getMediaSegments() throws StreamingManifestException {
+        List<ManifestMediaSegment> segments = new ArrayList<>();
+        for (HLSMediaSegment hlsMediaSegment : playlistHLS) {
+            ManifestMediaSegment segment = new ManifestMediaSegment(hlsMediaSegment.mediauri, hlsMediaSegment.duration);
+            segments.add(segment);
+        }
+        return segments;
+    }
+
     private void initiateTags() {
         validTags.put("#EXTM3U", "EXTM3U");
+        validTags.put("#EXTINF", "EXTINF");
     }
 
     private String tagFromLine(String line) {
@@ -80,9 +90,9 @@ public class StreamingManifestHLS implements StreamingManifest {
         return null;
     }
 
-    private MediaSegment parseEXTINF(String line) {
-        MediaSegment segment = new MediaSegment();
-        Pattern p = Pattern.compile("(\\d+),(\\S+)");
+    private HLSMediaSegment parseEXTINF(String line) {
+        HLSMediaSegment segment = new HLSMediaSegment();
+        Pattern p = Pattern.compile("#EXTINF:(.*),(.*)");
         Matcher m = p.matcher(line);
         if (m.matches()) {
             segment.duration = new Float(m.group(1));
@@ -97,11 +107,11 @@ public class StreamingManifestHLS implements StreamingManifest {
             String line = null;
             boolean expectMediaSegment = false;
             int linenumber = 0;
-            MediaSegment segment = null;
+            HLSMediaSegment segment = null;
             while ((line = reader.readLine()) != null) {
-                String tag = tagFromLine(line);
-                if (tag != null) {
-                    if (!expectMediaSegment) {
+                if (!expectMediaSegment) {
+                    String tag = tagFromLine(line);
+                    if (tag != null) {
                         switch (tag) {
                             case "EXTM3U":
                                 if (linenumber < 1) {
@@ -113,12 +123,12 @@ public class StreamingManifestHLS implements StreamingManifest {
                                 segment = parseEXTINF(line);
                                 break;
                         }
-                    } else {
-                        segment.medialink = line;
-                        playlist.add(segment);
-                        expectMediaSegment = false;
-                        segment = null;
                     }
+                } else {
+                    segment.mediauri = line;
+                    playlistHLS.add(segment);
+                    expectMediaSegment = false;
+                    segment = null;
                 }
                 linenumber++;
 

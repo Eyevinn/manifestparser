@@ -19,10 +19,16 @@
  */
 package se.eyevinn.labs;
 
-import java.util.List;
+public class ManifestMediaSegment {
+    private String mediaURI;
+    private float mediaDuration;
 
-public interface StreamingManifest {
-    public void parse() throws StreamingManifestException;
-    public List<ManifestMediaSegment> getMediaSegments() throws StreamingManifestException;
-    public String getManifestType();
+    public ManifestMediaSegment(String mediaURI, float mediaDuration) {
+        this.mediaURI = mediaURI;
+        this.mediaDuration = mediaDuration;
+    }
+
+    public String toString() {
+        return mediaURI + " (" + mediaDuration + ")";
+    }
 }
